@@ -9,7 +9,7 @@ def backtest_strategy(df):
     df = calc_prev_gain(df).copy()
 
     L = len(df)
-    if L == 0:
+    if L < 2:  # 需要至少兩天資料來執行進場邏輯
         return df
 
     # 初始化欄位
@@ -20,20 +20,22 @@ def backtest_strategy(df):
     position = 0
     avg_cost = 0.0
     cum_ret = 0.0
-    enter_signal = False  # 是否隔天要進場
-    enter_price = 0.0  # 隔天開盤進場價格
+    yesterday_triggered_bb = False  # 紀錄前一天收盤是否觸發BB上軌
+    prev_close = 0.0
+    prev_gain = 0.0
 
-    for i in range(L):
+    for i in range(L):  # 循環遍歷所有日期
         idx = df.index[i]
         row = df.iloc[i]
 
-        # --- 隔天開盤進場 ---
-        if enter_signal:
-            avg_cost = row["收盤價"]  # 假設開盤價與當日收盤價相同
-            position = 1
-            enter_signal = False
-            # 如果你有真實開盤價欄位，可以用 row["開盤價"] 取代
-            # avg_cost = row["開盤價"]
+        # 處理進場邏輯 (適用於今天)
+        if yesterday_triggered_bb and position == 0:
+            # 檢查今天開盤是否滿足第二階段訊號
+            if row["開盤價"] >= prev_close - prev_gain / 2:
+                # 使用今天的開盤價進場，並重置訊號
+                avg_cost = row["開盤價"]
+                position = 1
+            yesterday_triggered_bb = False  # 訊號已處理，重置
 
         # --- 出場條件（當日收盤） ---
         if position == 1 and row["收盤價"] < row["MA5"]:
@@ -53,16 +55,12 @@ def backtest_strategy(df):
         # --- 記錄持倉 ---
         df.at[idx, "position"] = position
 
-        # --- 當日收盤判斷進場信號 ---
-        if position == 0:
+        # --- 判斷今天收盤是否觸發進場訊號 (供明天使用) ---
+        if position == 0:  # 只有在目前沒有持倉時才考慮進場
             if row["收盤價"] > row["BB_Upper"]:
-                gain_yesterday = row.get("prev_gain", 0.0)
-                # 隔天開盤價預測（可用 row["收盤價"] 或 next day open）
-                if i + 1 < L:
-                    next_open = df.iloc[i + 1]["收盤價"]  # 用開盤價更準確
-                    if next_open >= row["收盤價"] - gain_yesterday / 2:
-                        enter_signal = True
-                        enter_price = next_open
+                yesterday_triggered_bb = True  # 為明天設置訊號
+                prev_close = row["收盤價"]
+                prev_gain = row.get("prev_gain", 0.0)
 
     # --- Buy & Hold ---
     df["BH"] = df["收盤價"] - df["收盤價"].iloc[0]
