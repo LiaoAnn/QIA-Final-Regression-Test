@@ -96,3 +96,23 @@ def calc_MA10(df, period=10):
     """
     df["MA10"] = df["收盤價"].rolling(period).mean()
     return df
+
+
+# 8️⃣ 相對強弱指數 (RSI)
+def calc_RSI14(df, period=14):
+    """
+    計算14日RSI
+    """
+    x = df["收盤價"].diff()
+    epsilon = 1e-10
+    
+    gain = x.where(x > 0, 0)
+    loss = -x.where(x < 0, 0)
+    
+    avg_gain = gain.rolling(period).mean()
+    avg_loss = loss.rolling(period).mean()
+    
+    rs = avg_gain / (avg_loss + epsilon)
+    
+    df["RSI14"] = 100 - (100 / (1 + rs))
+    return df

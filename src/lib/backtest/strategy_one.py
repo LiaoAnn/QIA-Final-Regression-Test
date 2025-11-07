@@ -38,7 +38,7 @@ def backtest_strategy(df):
             yesterday_triggered_bb = False  # 訊號已處理，重置
 
         # --- 出場條件（當日收盤） ---
-        if position == 1 and row["收盤價"] < row["MA5"]:
+        if position == 1 and row["收盤價"] < row["BB_Upper"]:
             exit_price = row["收盤價"]
             ret = exit_price - avg_cost
             df.at[idx, "ret"] = ret
