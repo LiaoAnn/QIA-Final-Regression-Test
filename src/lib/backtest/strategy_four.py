@@ -29,6 +29,11 @@ def backtest_strategy_four(df, bb_period=5, bb_std=2, ma_long_period=10):
 
     # --- 步驟一：計算所需技術指標 ---
     df = calc_Bollinger(df, n=bb_period, k=bb_std).copy()
+
+    # 加入 BB_MA 欄位（布林中線 = MA(bb_period)）
+    bb_ma_col = f"BB_MA{bb_period}"
+    df[bb_ma_col] = df["收盤價"].rolling(bb_period).mean()
+
     # 計算長期趨勢線
     ma_long_col = f'MA{ma_long_period}'
     df[ma_long_col] = df['收盤價'].rolling(ma_long_period).mean()
